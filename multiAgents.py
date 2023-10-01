@@ -4,22 +4,23 @@
 # educational purposes provided that (1) you do not distribute or publish
 # solutions, (2) you retain this notice, and (3) you provide clear
 # attribution to UC Berkeley, including a link to http://ai.berkeley.edu.
-#
+# 
 # Attribution Information: The Pacman AI projects were developed at UC Berkeley.
 # The core projects and autograders were primarily created by John DeNero
 # (denero@cs.berkeley.edu) and Dan Klein (klein@cs.berkeley.edu).
 # Student side autograding was added by Brad Miller, Nick Hay, and
 # Pieter Abbeel (pabbeel@cs.berkeley.edu).
-from pacman import GameState
+from typing import List, Type
+
+from multiagent.pacman import GameState
 from util import manhattanDistance
 from game import Directions
 import random, util
-
 from game import Agent
 
 PAC_MAN = 0
 GHOSTS_BASE_INDEX = 1
-BASE_STATE_EVAL = 100
+WIN_STATE_SCORE = 1000
 
 # ------------------------------------------------------------------------ CLASS ---------------------------------------
 
@@ -77,6 +78,7 @@ class ReflexAgent(Agent):
         newFood = successorGameState.getFood()
         newGhostStates = successorGameState.getGhostStates()
         newScaredTimes = [ghostState.scaredTimer for ghostState in newGhostStates]
+
         "*** YOUR CODE HERE ***"
         return successorGameState.getScore()
 
@@ -107,75 +109,14 @@ class MultiAgentSearchAgent(Agent):
     is another abstract class.
     """
 
-    def __init__(self, evalFn='scoreEvaluationFunction', depth='2'):
-        super().__init__()
+    def __init__(self, evalFn = 'scoreEvaluationFunction', depth = '2'):
         self.index = 0 # Pacman is always agent index 0
         self.evaluationFunction = util.lookup(evalFn, globals())
         self.depth = int(depth)
 
-    # ----------------------------------------------------------------------- GHOST SUCCESSORS STATES ------------------
-    def getGhostsSuccessorStates(self, state: GameState)-> list[GameState]:
-        """ Obtains all the possible successor states based on the possible combinations of the available ghosts'
-            possible actions. Each successor state corresponds to one tuple whose actions were successively applied for
-            its corresponding ghost.
-        """
-        ghostActions = []
-        for index in range(1, state.getNumAgents()):
-            ghostActions.append(state.getLegalActions(index))
-
-        successorStates = []
-        transitionTuples = self.generateStateTransitionTuples(ghostActions, state.getNumAgents()-1)
-
-        for transitionTuple in transitionTuples:
-            ghostIndex = 1
-            successor = state
-            # Each position in the tuple corresponds to one of the ghosts
-            for ghostAction in transitionTuple:
-                # Because tuples have the size of the total number ghosts and because eventually a ghost will
-                # have no legal action to perform, so an action can be null (None)
-                if ghostAction:
-                    successor = successor.generateSuccessor(ghostIndex, ghostAction)
-                ghostIndex += 1
-                # After an entire tuple is applied, a new state is created
-            successorStates.append(successor)
-        return successorStates
-
-    # ----------------------------------------------------------------------- ALL COMBINATIONS OF GHOST ACTIONS --------
-    def generateStateTransitionTuples(self, ghostsActions: list[list[any]], tupleLength: int) -> list[tuple]:
-        """
-        Builds a list of tuples where each tuple is a possible combinations of ghost legal actions.
-        For ex:
-                ghost_01_actions = {A, B}
-                ghost_02_actions = {C, D, E}
-                tuples = {(A, C), (A, D), (A, E), (B, C), (B, D), (B, E)}
-            Args:
-                ghostsActions a list L of lists Ln where each inner list Ln is a list of a ghost actions.
-                tupleLength the tuple length. For any n-upla it's initial value is n.
-            Return:
-                A list of tuples where each tuple is combinations of ghost legal actions. Each tuple position index
-                corresponds to the index of the ghost executing the action.
-        """
-        if tupleLength == 0:
-            return [tuple()]
-
-        if not ghostsActions:
-            return []
-
-        first_list = ghostsActions[0]
-        rest_lists = ghostsActions[1:]
-
-        combinations = []
-        for element in first_list:
-            for sub_combination in self.generateStateTransitionTuples(rest_lists, tupleLength - 1):
-                combinations.append((element,) + sub_combination)
-
-        return combinations
-
-    def isTerminal(self, state, currentDepth: int)->bool:
-        """ Because the leafs are instances of GameState, nodes are instances of MultiagentTreeState. """
-        # the current depth must consider the 2-ply. I don't know exactly why, but it does.
-        return state.isWin() or state.isLose()  or isinstance(state, GameState) or currentDepth/2 == self.depth
 # ------------------------------------------------------------------------ CLASS ---------------------------------------
+
+
 
 class MinimaxAgent(MultiAgentSearchAgent):
     """ ================================================================================================================
@@ -183,7 +124,10 @@ class MinimaxAgent(MultiAgentSearchAgent):
     ====================================================================================================================
     """
 
-    def getAction(self, gameState):
+    def __init__(self):
+        super().__init__()
+
+    def getAction(self, gameState: GameState):
         """
         Returns the minimax action from the current gameState using self.depth
         and self.evaluationFunction.
@@ -207,51 +151,89 @@ class MinimaxAgent(MultiAgentSearchAgent):
         gameState.isLose():
         Returns whether the game state is a losing state
         """
+        return self.maxValue(gameState, self.depth -1)
 
-        value, move = self.maxValue(gameState, 0)
-        return move
 
     # ------------------------------------------------------------------------------ MAX VALUE -------------------------
-    def maxValue(self, state: GameState, currentDepth: int) -> (float, str):
+    def maxValue(self, state: GameState, depth: int) -> (int, any):
         """ Maximizes for the PacMan agent """
-        if self.isTerminal(state, currentDepth):
-            return better(state), None
+        if depth == 0:
+            return betterEvaluationFunction(state)
 
         highestScore, selectedAction = 0, None
         actions = state.getLegalActions(PAC_MAN)
-
         for action in actions:
-            minTuple = self.minValue(state.generateSuccessor(PAC_MAN, action), currentDepth+1)
-            currentScore, currentAction = minTuple[0], action
+            currentScore, currentAction = self.minValue(state.generateSuccessor(PAC_MAN, action), depth-1)
             if currentScore > highestScore:
                 highestScore, selectedAction = currentScore, currentAction
-        print("selectedAction : {}".format(selectedAction))
         return highestScore, selectedAction
 
     # ------------------------------------------------------------------------------ MIN VALUE -------------------------
-    def minValue(self, state: GameState, currentDepth: int) -> (float, str):
+    def minValue(self, state: GameState, depth: int) -> (int, any):
         """ Minimizes for the Ghost agents """
-        if self.isTerminal(state, currentDepth):
-            return better(state), None
+        if depth == 0:
+            return betterEvaluationFunction(state)
 
-        lowestScore, selectedAction = 9999999, None
+        lowestScore, selectedAction = 100000, None
         successorStates = self.getGhostsSuccessorStates(state)
         for successorState in successorStates:
-            currentScore, currentAction = self.maxValue(successorState, currentDepth+1)
+            currentScore, currentAction = self.minValue(successorState, depth - 1)
             if currentScore < lowestScore:
                 lowestScore, selectedAction = currentScore, currentAction
         return lowestScore, selectedAction
 
-# ------------------------------------------------------------------------ CLASS ---------------------------------------
+    # ----------------------------------------------------------------------- GHOST SUCCESSORS STATES ------------------
+    def getGhostsSuccessorStates(self, state: GameState)-> list[GameState]:
+        """ Obtains all the possible successor states based on the possible combinations of the available ghosts'
+            possible actions. Each successor state corresponds to one tuple whose actions were successively applied for
+            its corresponding ghost.
+        """
+        totalGhosts = state.getNumAgents() - 1
+        ghostActions = []
+        for index in totalGhosts:
+            ghostActions.append(state.getLegalActions(index))
 
-class Pruning:
-    """ Encapsulates the Alpha and the Beta variables used as registers into the Alpha-Beta pruning adversarial
-    search implementation"""
-    def __init__(self, alpha:float, beta:float):
-        # global maximum
-        self.ALPHA = alpha
-        # global minimum
-        self.BETA = beta
+        successorStates = []
+        transitionTuples = self.generateStateTransitionTuples(ghostActions, totalGhosts)
+        for transitionTuple in transitionTuples:
+            ghostIndex = 1
+            successor = state
+            for ghostAction in transitionTuple:
+                successor = successor.generateSuccessor(ghostIndex, ghostAction)
+                ghostIndex += 1
+            successorStates.append(successor)
+        return successorStates
+
+    # ----------------------------------------------------------------------- ALL COMBINATIONS OF GHOST ACTIONS --------
+    def generateStateTransitionTuples(self, ghostsActions: list[list[any]], tupleLength: int) -> list[tuple]:
+        """
+        Builds a list of tuples where each tuple is a possible combinations of ghost legal actions.
+        For ex:
+                ghost_01_actions = {A, B}
+                ghost_02_actions = {C, D, E}
+                tuples = {(A, C), (A, D), (A, E), (B, C), (B, D), (B, E)}
+            Args:
+                ghostsActions a list L of lists Ln where each inner list Ln is a list of a ghost actions.
+                tupleLength the tuple length. For a n-upla it's initial value is n.
+            Return:
+                A list of tuples where each tuple is combinations of ghost legal actions. Each tuple position index
+                corresponds to the index of the ghost executing the action.
+        """
+        if tupleLength == 0:
+            return [tuple()]
+
+        if not ghostsActions:
+            return []
+
+        first_list = ghostsActions[0]
+        rest_lists = ghostsActions[1:]
+
+        combinations = []
+        for element in first_list:
+            for sub_combination in self.generateStateTransitionTuples(rest_lists, tupleLength - 1):
+                combinations.append((element,) + sub_combination)
+
+        return combinations
 
 # ------------------------------------------------------------------------ CLASS ---------------------------------------
 
@@ -261,55 +243,12 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
     ====================================================================================================================
     """
 
-    def __init__(self, depth):
-        super().__init__()
-        self.pruning = Pruning(0.00, 9999999999.89)
-        self.depth = depth
-
     def getAction(self, gameState):
         """
         Returns the minimax action using self.depth and self.evaluationFunction
         """
-        value, move = self.maxValue_alpha_beta(gameState, 0)
-        return move
-    # --------------------------------------------------------------------ALPHA-BETA MAX VALUE -------------------------
-    def maxValue_alpha_beta(self, thisGameState: GameState, currentDepth:int) -> (float, any):
-        """ Maximizes for the PacMan agent """
-
-        if self.isTerminal(thisGameState, currentDepth):
-            return better(thisGameState), None
-
-        highestScore, selectedAction = 0, None
-        actions = thisGameState.getLegalActions(PAC_MAN)
-
-        for action in actions:
-            minTuple = self.minValue_alpha_beta(thisGameState.generateSuccessor(PAC_MAN, action), currentDepth+1)
-            currentScore, currentAction = minTuple[0], action
-            if currentScore > highestScore:
-                highestScore, selectedAction = currentScore, currentAction
-                self.pruning.ALPHA = max(self.pruning.ALPHA, highestScore)
-            if highestScore > self.pruning.BETA:
-                return highestScore, selectedAction
-        return highestScore, selectedAction
-
-    # ------------------------------------------------------------------- ALPHA-BETA MIN VALUE -------------------------
-    def minValue_alpha_beta(self, thisGameState: GameState, currentDepth:int) -> (float, any):
-        """ Minimizes for the Ghost agents """
-
-        if self.isTerminal(thisGameState, currentDepth):
-            return better(thisGameState), None
-
-        lowestScore, selectedAction = 9999999, None
-
-        successorStates = self.getGhostsSuccessorStates(thisGameState)
-        for successorState in successorStates:
-            currentScore, currentAction = self.maxValue_alpha_beta(successorState, currentDepth+1)
-            if currentScore < lowestScore:
-                lowestScore, selectedAction = currentScore, currentAction
-                self.pruning.BETA = min(self.pruning.BETA, lowestScore)
-            if lowestScore < self.pruning.ALPHA:
-                return lowestScore, selectedAction
-        return lowestScore, selectedAction
+        "*** YOUR CODE HERE ***"
+        util.raiseNotDefined()
 
 # ------------------------------------------------------------------------ CLASS ---------------------------------------
 
@@ -330,20 +269,18 @@ class ExpectimaxAgent(MultiAgentSearchAgent):
 
 # ------------------------------------------------------------------------ CLASS ---------------------------------------
 def betterEvaluationFunction(state: GameState):
-
     """
     Your extreme ghost-hunting, pellet-nabbing, food-gobbling, unstoppable
     evaluation function (question 5).
 
-    DESCRIPTION: Starts with a base value and either penalizes it (subtracts a certain amount) or rewards it (adds a
-    certain amount). The more beneficial the scenario, the more we reward, the more detrimental, the more we penalize.
-    Both win (super rewarding) and lose (super detrimental) final states are absolute on their own and will trigger an
-    immediate return.
+    DESCRIPTION: <write something here, so we know what you did>
     """
-
-    if isinstance(state, GameState):
-        return (state.getScore()/max((state.getNumAgents()+len(state.getCapsules())),1))-state.getNumFood()
-    return state.getScore()
+    score = WIN_STATE_SCORE
+    legalActions = state.getLegalActions(PAC_MAN)
+    for action in legalActions:
+        successorState = state.generateSuccessor(PAC_MAN, action)
+        if successorState.isLose():
+            score = score - 100
 
 # Abbreviation
 better = betterEvaluationFunction
