@@ -14,13 +14,13 @@ from typing import List, Type
 
 from multiagent.pacman import GameState
 from util import manhattanDistance
-from game import Directions
+from game import Directions, AgentState
 import random, util
 from game import Agent
 
 PAC_MAN = 0
 GHOSTS_BASE_INDEX = 1
-WIN_STATE_SCORE = 1000
+BASE_STATE_EVAL = 70
 
 # ------------------------------------------------------------------------ CLASS ---------------------------------------
 
@@ -275,12 +275,32 @@ def betterEvaluationFunction(state: GameState):
 
     DESCRIPTION: <write something here, so we know what you did>
     """
-    score = WIN_STATE_SCORE
-    legalActions = state.getLegalActions(PAC_MAN)
-    for action in legalActions:
-        successorState = state.generateSuccessor(PAC_MAN, action)
-        if successorState.isLose():
-            score = score - 100
+    stateEvaluation = BASE_STATE_EVAL
+    if state.isLose():
+        return 0
+    if state.isWin():
+        return stateEvaluation * 10
+
+    # kill ghosts or run away from ghosts?
+    ghostStates = list[AgentState](state.getGhostStates())
+    for ghostState in ghostStates:
+        if ghostState.scaredTimer:
+            stateEvaluation = stateEvaluation - manhattanDistance(state.getPacmanPosition(), ghostState.getPosition())
+        else:
+            stateEvaluation = stateEvaluation + manhattanDistance(state.getPacmanPosition(), ghostState.getPosition())
+    # Any capsule? If yes, the closer, the better
+    capsules = state.getCapsules()
+    if not capsules:
+        stateEvaluation = stateEvaluation * 2
+    else:
+        for capsule in capsules:
+            stateEvaluation = stateEvaluation - manhattanDistance(state.getPacmanPosition(), capsule.getPosition())
+
+    stateEvaluation = stateEvaluation + state.getScore()
+
+    # check not moving towards wall
+
+    # check moving towards food
 
 # Abbreviation
 better = betterEvaluationFunction
