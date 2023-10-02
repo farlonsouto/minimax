@@ -12,15 +12,15 @@
 # Pieter Abbeel (pabbeel@cs.berkeley.edu).
 from typing import List, Type
 
-from multiagent.pacman import GameState
+from pacman import GameState
 from util import manhattanDistance
-from game import Directions, AgentState
+from game import Directions, AgentState, GameStateData
 import random, util
 from game import Agent
 
 PAC_MAN = 0
 GHOSTS_BASE_INDEX = 1
-BASE_STATE_EVAL = 70
+BASE_STATE_EVAL = 50
 
 # ------------------------------------------------------------------------ CLASS ---------------------------------------
 
@@ -109,7 +109,8 @@ class MultiAgentSearchAgent(Agent):
     is another abstract class.
     """
 
-    def __init__(self, evalFn = 'scoreEvaluationFunction', depth = '2'):
+    def __init__(self, evalFn='scoreEvaluationFunction', depth='2'):
+        super().__init__()
         self.index = 0 # Pacman is always agent index 0
         self.evaluationFunction = util.lookup(evalFn, globals())
         self.depth = int(depth)
@@ -124,7 +125,7 @@ class MinimaxAgent(MultiAgentSearchAgent):
     ====================================================================================================================
     """
 
-    def __init__(self):
+    def __init__(self, depth='2'):
         super().__init__()
 
     def getAction(self, gameState: GameState):
@@ -155,27 +156,27 @@ class MinimaxAgent(MultiAgentSearchAgent):
 
 
     # ------------------------------------------------------------------------------ MAX VALUE -------------------------
-    def maxValue(self, state: GameState, depth: int) -> (int, any):
+    def maxValue(self, thisGameState: GameState, depth: int) -> (float, any):
         """ Maximizes for the PacMan agent """
         if depth == 0:
-            return betterEvaluationFunction(state)
+            return theEvaluationOf(thisGameState), None
 
         highestScore, selectedAction = 0, None
-        actions = state.getLegalActions(PAC_MAN)
+        actions = thisGameState.getLegalActions(PAC_MAN)
         for action in actions:
-            currentScore, currentAction = self.minValue(state.generateSuccessor(PAC_MAN, action), depth-1)
+            currentScore, currentAction = self.minValue(thisGameState.generateSuccessor(PAC_MAN, action), depth - 1)
             if currentScore > highestScore:
                 highestScore, selectedAction = currentScore, currentAction
         return highestScore, selectedAction
 
     # ------------------------------------------------------------------------------ MIN VALUE -------------------------
-    def minValue(self, state: GameState, depth: int) -> (int, any):
+    def minValue(self, thisGameState: GameState, depth: int) -> (float, any):
         """ Minimizes for the Ghost agents """
         if depth == 0:
-            return betterEvaluationFunction(state)
+            return theEvaluationOf(thisGameState), None
 
-        lowestScore, selectedAction = 100000, None
-        successorStates = self.getGhostsSuccessorStates(state)
+        lowestScore, selectedAction = 9999999, None
+        successorStates = self.getGhostsSuccessorStates(thisGameState)
         for successorState in successorStates:
             currentScore, currentAction = self.minValue(successorState, depth - 1)
             if currentScore < lowestScore:
@@ -281,16 +282,24 @@ def betterEvaluationFunction(state: GameState):
     stateEvaluation = BASE_STATE_EVAL
     if state.isLose():
         return 0
-    if state.isWin():
-        return stateEvaluation * 5
+    elif state.isWin():
+        return stateEvaluation * 2
+    else:
+        return state.getScore()/state.getNumAgents() #+ rewardFunction(state)
+
+def rewardFunction(state: GameState) -> float:
+    stateEvaluation = BASE_STATE_EVAL
 
     # To chase ghosts or to run away from ghosts?
     ghostStates = list[AgentState](state.getGhostStates())
+    pacManPos = state.getPacmanPosition()
     for ghostState in ghostStates:
+        ghostPosition = ghostState.getPosition()
+        distancePacManGhost = manhattanDistance(pacManPos, ghostPosition)
         if ghostState.scaredTimer:
-            stateEvaluation = stateEvaluation - manhattanDistance(state.getPacmanPosition(), ghostState.getPosition())
+            stateEvaluation = stateEvaluation - 2*distancePacManGhost
         else:
-            stateEvaluation = stateEvaluation + manhattanDistance(state.getPacmanPosition(), ghostState.getPosition())
+            stateEvaluation = stateEvaluation + distancePacManGhost
 
     # The fewer ghosts, the better
     stateEvaluation = stateEvaluation/state.getNumAgents()
@@ -298,18 +307,18 @@ def betterEvaluationFunction(state: GameState):
     # Any capsule? If yes, the closer, the better
     capsules = state.getCapsules()
     if not capsules:
-        stateEvaluation = stateEvaluation * 2
+        stateEvaluation = stateEvaluation * 5
     else:
         for capsule in capsules:
             stateEvaluation = stateEvaluation - manhattanDistance(state.getPacmanPosition(), capsule.getPosition())
 
     # the higher the score, the higher the reward
-    stateEvaluation = stateEvaluation + state.getScore()
+    stateEvaluation = stateEvaluation * state.getScore()
 
     # reward for eating the food
-    stateEvaluation = stateEvaluation - GameState(state).getNumFood()
+    stateEvaluation = stateEvaluation/GameState(state).getNumFood()
 
     return stateEvaluation
 
 # Abbreviation
-better = betterEvaluationFunction
+theEvaluationOf = betterEvaluationFunction
