@@ -75,7 +75,7 @@ class ReflexAgent(Agent):
         # Useful information you can extract from a GameState (pacman.py)
         successorGameState = currentGameState.generatePacmanSuccessor(action)
         newPos = successorGameState.getPacmanPosition()
-        newFood = successorGameState.getFood()
+        newFood = GameState(successorGameState).getFood()
         newGhostStates = successorGameState.getGhostStates()
         newScaredTimes = [ghostState.scaredTimer for ghostState in newGhostStates]
 
@@ -214,7 +214,7 @@ class MinimaxAgent(MultiAgentSearchAgent):
                 tuples = {(A, C), (A, D), (A, E), (B, C), (B, D), (B, E)}
             Args:
                 ghostsActions a list L of lists Ln where each inner list Ln is a list of a ghost actions.
-                tupleLength the tuple length. For a n-upla it's initial value is n.
+                tupleLength the tuple length. For any n-upla it's initial value is n.
             Return:
                 A list of tuples where each tuple is combinations of ghost legal actions. Each tuple position index
                 corresponds to the index of the ghost executing the action.
@@ -273,21 +273,28 @@ def betterEvaluationFunction(state: GameState):
     Your extreme ghost-hunting, pellet-nabbing, food-gobbling, unstoppable
     evaluation function (question 5).
 
-    DESCRIPTION: <write something here, so we know what you did>
+    DESCRIPTION: Starts with a base value and either penalizes it (subtracts a certain amount) or rewards it (adds a
+    certain amount). The more beneficial the scenario, the more we reward, the more detrimental, the more we penalize.
+    Both win (super rewarding) and lose (super detrimental) final states are absolute on their own and will trigger an
+    immediate return.
     """
     stateEvaluation = BASE_STATE_EVAL
     if state.isLose():
         return 0
     if state.isWin():
-        return stateEvaluation * 10
+        return stateEvaluation * 5
 
-    # kill ghosts or run away from ghosts?
+    # To chase ghosts or to run away from ghosts?
     ghostStates = list[AgentState](state.getGhostStates())
     for ghostState in ghostStates:
         if ghostState.scaredTimer:
             stateEvaluation = stateEvaluation - manhattanDistance(state.getPacmanPosition(), ghostState.getPosition())
         else:
             stateEvaluation = stateEvaluation + manhattanDistance(state.getPacmanPosition(), ghostState.getPosition())
+
+    # The fewer ghosts, the better
+    stateEvaluation = stateEvaluation/state.getNumAgents()
+
     # Any capsule? If yes, the closer, the better
     capsules = state.getCapsules()
     if not capsules:
@@ -296,11 +303,13 @@ def betterEvaluationFunction(state: GameState):
         for capsule in capsules:
             stateEvaluation = stateEvaluation - manhattanDistance(state.getPacmanPosition(), capsule.getPosition())
 
+    # the higher the score, the higher the reward
     stateEvaluation = stateEvaluation + state.getScore()
 
-    # check not moving towards wall
+    # reward for eating the food
+    stateEvaluation = stateEvaluation - GameState(state).getNumFood()
 
-    # check moving towards food
+    return stateEvaluation
 
 # Abbreviation
 better = betterEvaluationFunction
