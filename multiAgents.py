@@ -4,19 +4,19 @@
 # educational purposes provided that (1) you do not distribute or publish
 # solutions, (2) you retain this notice, and (3) you provide clear
 # attribution to UC Berkeley, including a link to http://ai.berkeley.edu.
-# 
+#
 # Attribution Information: The Pacman AI projects were developed at UC Berkeley.
 # The core projects and autograders were primarily created by John DeNero
 # (denero@cs.berkeley.edu) and Dan Klein (klein@cs.berkeley.edu).
 # Student side autograding was added by Brad Miller, Nick Hay, and
 # Pieter Abbeel (pabbeel@cs.berkeley.edu).
-from multiagent.pacman import GameState
+
+
 from util import manhattanDistance
 from game import Directions
 import random, util
-from game import Agent
 
-# ------------------------------------------------------------------------ CLASS ---------------------------------------
+from game import Agent
 
 class ReflexAgent(Agent):
     """
@@ -86,8 +86,6 @@ def scoreEvaluationFunction(currentGameState):
     """
     return currentGameState.getScore()
 
-# ------------------------------------------------------------------------ CLASS ---------------------------------------
-
 class MultiAgentSearchAgent(Agent):
     """
     This class provides some common elements to all of your
@@ -108,21 +106,12 @@ class MultiAgentSearchAgent(Agent):
         self.evaluationFunction = util.lookup(evalFn, globals())
         self.depth = int(depth)
 
-# ------------------------------------------------------------------------ CLASS ---------------------------------------
-
 class MinimaxAgent(MultiAgentSearchAgent):
-    """ ================================================================================================================
-    ====================== MINIMAX AGENT ======================================================= QUESTION 2 ============
-    ====================================================================================================================
+    """
+    Your minimax agent (question 2)
     """
 
-    def __init__(self):
-        super().__init__()
-        self.PAC_MAN = 0
-        self.GHOSTS = 1
-        self.WIN_STATE_SCORE = 1000
-
-    def getAction(self, gameState: GameState):
+    def getAction(self, gameState):
         """
         Returns the minimax action from the current gameState using self.depth
         and self.evaluationFunction.
@@ -130,9 +119,8 @@ class MinimaxAgent(MultiAgentSearchAgent):
         Here are some method calls that might be useful when implementing minimax.
 
         gameState.getLegalActions(agentIndex):
-        Returns a list of legal actions for an agent where:
-            - agentIndex=0 is Pacman
-            - ghosts' agentIndex >= 1
+        Returns a list of legal actions for an agent
+        agentIndex=0 means Pacman, ghosts are >= 1
 
         gameState.generateSuccessor(agentIndex, action):
         Returns the successor game state after an agent takes an action
@@ -141,44 +129,17 @@ class MinimaxAgent(MultiAgentSearchAgent):
         Returns the total number of agents in the game
 
         gameState.isWin():
-        Returns whether the game state is a winning state
+        Returns whether or not the game state is a winning state
 
         gameState.isLose():
-        Returns whether the game state is a losing state
+        Returns whether or not the game state is a losing state
         """
-        return self.maxValue(gameState, self.depth)
-
-
-    def maxValue(self, state: GameState, depth: int) -> (int, any):
-        if depth == 0:
-            return None
-
-        highestScore, selectedAction = 0, None
-        actions = state.getLegalActions(self.PAC_MAN)
-        for action in actions:
-            currentScore, currentAction = self.minValue(state.generateSuccessor(self.PAC_MAN, action), depth-1)
-            if currentScore > highestScore:
-                highestScore, selectedAction = currentScore, currentAction
-        return highestScore, selectedAction
-
-    def minValue(self, state: GameState, depth: int) -> (int, any):
-        if depth == 0:
-            return None
-
-        lowestScore, selectedAction = 1000, None
-        actions = state.getLegalActions(self.PAC_MAN)
-        for action in actions:
-            currentScore, currentAction = self.minValue(state.generateSuccessor(self.PAC_MAN, action), depth-1)
-            if currentScore < lowestScore:
-                lowestScore, selectedAction = currentScore, currentAction
-        return lowestScore, selectedAction
-
-# ------------------------------------------------------------------------ CLASS ---------------------------------------
+        "*** YOUR CODE HERE ***"
+        util.raiseNotDefined()
 
 class AlphaBetaAgent(MultiAgentSearchAgent):
-    """ ================================================================================================================
-    ==================================== ALPHA-BETA PRUNING ==================================== QUESTION 3 ============
-    ====================================================================================================================
+    """
+    Your minimax agent with alpha-beta pruning (question 3)
     """
 
     def getAction(self, gameState):
@@ -187,8 +148,6 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
         """
         "*** YOUR CODE HERE ***"
         util.raiseNotDefined()
-
-# ------------------------------------------------------------------------ CLASS ---------------------------------------
 
 class ExpectimaxAgent(MultiAgentSearchAgent):
     """
@@ -205,7 +164,6 @@ class ExpectimaxAgent(MultiAgentSearchAgent):
         "*** YOUR CODE HERE ***"
         util.raiseNotDefined()
 
-# ------------------------------------------------------------------------ CLASS ---------------------------------------
 def betterEvaluationFunction(currentGameState):
     """
     Your extreme ghost-hunting, pellet-nabbing, food-gobbling, unstoppable
