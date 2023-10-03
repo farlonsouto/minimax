@@ -14,6 +14,7 @@ from pacman import GameState
 from util import manhattanDistance
 from game import Directions
 import random, util
+
 from game import Agent
 
 PAC_MAN = 0
@@ -120,10 +121,7 @@ class MinimaxAgent(MultiAgentSearchAgent):
     ====================================================================================================================
     """
 
-    def __init__(self):
-        super().__init__()
-
-    def getAction(self, gameState: GameState):
+    def getAction(self, gameState):
         """
         Returns the minimax action from the current gameState using self.depth
         and self.evaluationFunction.
@@ -147,22 +145,22 @@ class MinimaxAgent(MultiAgentSearchAgent):
         gameState.isLose():
         Returns whether the game state is a losing state
         """
-        return self.maxValue(gameState, self.depth)[1]
 
+        value, move = self.maxValue(gameState, self.depth-1)
+        return move
 
     # ------------------------------------------------------------------------------ MAX VALUE -------------------------
     def maxValue(self, thisGameState: GameState, depth: int) -> (float, any):
         """ Maximizes for the PacMan agent """
         if depth == 0:
-            return theEvaluationOf(thisGameState), None
+            return better(thisGameState), None
 
         highestScore, selectedAction = 0, None
         actions = thisGameState.getLegalActions(PAC_MAN)
 
         for action in actions:
-            minResultingTuple = self.minValue(thisGameState.generateSuccessor(PAC_MAN, action), depth - 1)
-            # From the resulting tuple, only the value matters. The action to consider is the PacMan's one
-            currentScore, currentAction = minResultingTuple[0], action
+            minTuple = self.minValue(thisGameState.generateSuccessor(PAC_MAN, action), depth - 1)
+            currentScore, currentAction = minTuple[0], action
             if currentScore > highestScore:
                 highestScore, selectedAction = currentScore, currentAction
         return highestScore, selectedAction
@@ -171,7 +169,7 @@ class MinimaxAgent(MultiAgentSearchAgent):
     def minValue(self, thisGameState: GameState, depth: int) -> (float, any):
         """ Minimizes for the Ghost agents """
         if depth == 0:
-            return theEvaluationOf(thisGameState), None
+            return better(thisGameState), None
 
         lowestScore, selectedAction = 9999999, None
         successorStates = self.getGhostsSuccessorStates(thisGameState)
@@ -270,6 +268,7 @@ class ExpectimaxAgent(MultiAgentSearchAgent):
 
 # ------------------------------------------------------------------------ CLASS ---------------------------------------
 def betterEvaluationFunction(state: GameState):
+
     """
     Your extreme ghost-hunting, pellet-nabbing, food-gobbling, unstoppable
     evaluation function (question 5).
@@ -279,46 +278,12 @@ def betterEvaluationFunction(state: GameState):
     Both win (super rewarding) and lose (super detrimental) final states are absolute on their own and will trigger an
     immediate return.
     """
-    stateEvaluation = BASE_STATE_EVAL
     if state.isLose():
         return 0
     elif state.isWin():
-        return stateEvaluation * 2
+        return BASE_STATE_EVAL * 1000
     else:
-        return rewardFunction(state)/(state.getNumAgents()+1)
-
-def rewardFunction(state: GameState) -> float:
-    stateEvaluation = BASE_STATE_EVAL
-
-    # To chase ghosts or to run away from ghosts?
-    ghostStates = state.getGhostStates()
-    pacManPos = state.getPacmanPosition()
-    for ghostState in ghostStates:
-        ghostPosition = ghostState.getPosition()
-        distancePacManGhost = manhattanDistance(pacManPos, ghostPosition)
-        if ghostState.scaredTimer:
-            stateEvaluation = stateEvaluation - 2*distancePacManGhost
-        else:
-            stateEvaluation = stateEvaluation + distancePacManGhost
-
-    # The fewer ghosts, the better
-    stateEvaluation = stateEvaluation/state.getNumAgents()
-
-    # Any capsule? If yes, the closer, the better
-    capsules = state.getCapsules()
-    if not capsules:
-        stateEvaluation = stateEvaluation * 5
-    else:
-        for capsule in capsules:
-            stateEvaluation = stateEvaluation - manhattanDistance(state.getPacmanPosition(), capsule.getPosition())
-
-    # the higher the score, the higher the reward
-    # stateEvaluation = stateEvaluation * state.getScore()
-
-    # reward for eating the food
-    stateEvaluation = stateEvaluation/(GameState(state).getNumFood()+1)
-
-    return stateEvaluation
+        return BASE_STATE_EVAL/(state.getNumAgents()+1)
 
 # Abbreviation
-theEvaluationOf = betterEvaluationFunction
+better = betterEvaluationFunction
