@@ -152,7 +152,7 @@ class MinimaxAgent(MultiAgentSearchAgent):
         gameState.isLose():
         Returns whether the game state is a losing state
         """
-        return self.maxValue(gameState, self.depth -1)
+        return self.maxValue(gameState, self.depth)[1]
 
 
     # ------------------------------------------------------------------------------ MAX VALUE -------------------------
@@ -163,8 +163,12 @@ class MinimaxAgent(MultiAgentSearchAgent):
 
         highestScore, selectedAction = 0, None
         actions = thisGameState.getLegalActions(PAC_MAN)
+        print("PACMAN Actions: ")
+        print(actions)
         for action in actions:
-            currentScore, currentAction = self.minValue(thisGameState.generateSuccessor(PAC_MAN, action), depth - 1)
+            minResultingTuple = self.minValue(thisGameState.generateSuccessor(PAC_MAN, action), depth - 1)
+            # From the resulting tuple, only the value matters. The action is the one from PacMan
+            currentScore, currentAction = minResultingTuple[0], action
             if currentScore > highestScore:
                 highestScore, selectedAction = currentScore, currentAction
         return highestScore, selectedAction
@@ -178,7 +182,7 @@ class MinimaxAgent(MultiAgentSearchAgent):
         lowestScore, selectedAction = 9999999, None
         successorStates = self.getGhostsSuccessorStates(thisGameState)
         for successorState in successorStates:
-            currentScore, currentAction = self.minValue(successorState, depth - 1)
+            currentScore, currentAction = self.maxValue(successorState, depth - 1)
             if currentScore < lowestScore:
                 lowestScore, selectedAction = currentScore, currentAction
         return lowestScore, selectedAction
@@ -191,7 +195,7 @@ class MinimaxAgent(MultiAgentSearchAgent):
         """
         totalGhosts = state.getNumAgents() - 1
         ghostActions = []
-        for index in totalGhosts:
+        for index in range(totalGhosts):
             ghostActions.append(state.getLegalActions(index))
 
         successorStates = []
@@ -234,6 +238,8 @@ class MinimaxAgent(MultiAgentSearchAgent):
             for sub_combination in self.generateStateTransitionTuples(rest_lists, tupleLength - 1):
                 combinations.append((element,) + sub_combination)
 
+        print("GHOST Actions. State Transition tuples: ")
+        print(combinations)
         return combinations
 
 # ------------------------------------------------------------------------ CLASS ---------------------------------------
