@@ -10,11 +10,9 @@
 # (denero@cs.berkeley.edu) and Dan Klein (klein@cs.berkeley.edu).
 # Student side autograding was added by Brad Miller, Nick Hay, and
 # Pieter Abbeel (pabbeel@cs.berkeley.edu).
-from typing import List, Type
-
 from pacman import GameState
 from util import manhattanDistance
-from game import Directions, AgentState, GameStateData
+from game import Directions
 import random, util
 from game import Agent
 
@@ -75,7 +73,7 @@ class ReflexAgent(Agent):
         # Useful information you can extract from a GameState (pacman.py)
         successorGameState = currentGameState.generatePacmanSuccessor(action)
         newPos = successorGameState.getPacmanPosition()
-        newFood = GameState(successorGameState).getFood()
+        newFood = successorGameState.getFood()
         newGhostStates = successorGameState.getGhostStates()
         newScaredTimes = [ghostState.scaredTimer for ghostState in newGhostStates]
 
@@ -109,15 +107,12 @@ class MultiAgentSearchAgent(Agent):
     is another abstract class.
     """
 
-    def __init__(self, evalFn='scoreEvaluationFunction', depth='2'):
-        super().__init__()
+    def __init__(self, evalFn = 'scoreEvaluationFunction', depth = '2'):
         self.index = 0 # Pacman is always agent index 0
         self.evaluationFunction = util.lookup(evalFn, globals())
         self.depth = int(depth)
 
 # ------------------------------------------------------------------------ CLASS ---------------------------------------
-
-
 
 class MinimaxAgent(MultiAgentSearchAgent):
     """ ================================================================================================================
@@ -125,7 +120,7 @@ class MinimaxAgent(MultiAgentSearchAgent):
     ====================================================================================================================
     """
 
-    def __init__(self, depth='2'):
+    def __init__(self):
         super().__init__()
 
     def getAction(self, gameState: GameState):
@@ -163,11 +158,10 @@ class MinimaxAgent(MultiAgentSearchAgent):
 
         highestScore, selectedAction = 0, None
         actions = thisGameState.getLegalActions(PAC_MAN)
-        print("PACMAN Actions: ")
-        print(actions)
+
         for action in actions:
             minResultingTuple = self.minValue(thisGameState.generateSuccessor(PAC_MAN, action), depth - 1)
-            # From the resulting tuple, only the value matters. The action is the one from PacMan
+            # From the resulting tuple, only the value matters. The action to consider is the PacMan's one
             currentScore, currentAction = minResultingTuple[0], action
             if currentScore > highestScore:
                 highestScore, selectedAction = currentScore, currentAction
@@ -203,9 +197,11 @@ class MinimaxAgent(MultiAgentSearchAgent):
         for transitionTuple in transitionTuples:
             ghostIndex = 1
             successor = state
+            # Each position in the tuple corresponds to one of the ghosts
             for ghostAction in transitionTuple:
                 successor = successor.generateSuccessor(ghostIndex, ghostAction)
                 ghostIndex += 1
+            # After an entire tuple is applied, a new state is created
             successorStates.append(successor)
         return successorStates
 
@@ -238,8 +234,6 @@ class MinimaxAgent(MultiAgentSearchAgent):
             for sub_combination in self.generateStateTransitionTuples(rest_lists, tupleLength - 1):
                 combinations.append((element,) + sub_combination)
 
-        print("GHOST Actions. State Transition tuples: ")
-        print(combinations)
         return combinations
 
 # ------------------------------------------------------------------------ CLASS ---------------------------------------
@@ -291,13 +285,13 @@ def betterEvaluationFunction(state: GameState):
     elif state.isWin():
         return stateEvaluation * 2
     else:
-        return state.getScore()/state.getNumAgents() #+ rewardFunction(state)
+        return rewardFunction(state)/(state.getNumAgents()+1)
 
 def rewardFunction(state: GameState) -> float:
     stateEvaluation = BASE_STATE_EVAL
 
     # To chase ghosts or to run away from ghosts?
-    ghostStates = list[AgentState](state.getGhostStates())
+    ghostStates = state.getGhostStates()
     pacManPos = state.getPacmanPosition()
     for ghostState in ghostStates:
         ghostPosition = ghostState.getPosition()
@@ -319,10 +313,10 @@ def rewardFunction(state: GameState) -> float:
             stateEvaluation = stateEvaluation - manhattanDistance(state.getPacmanPosition(), capsule.getPosition())
 
     # the higher the score, the higher the reward
-    stateEvaluation = stateEvaluation * state.getScore()
+    # stateEvaluation = stateEvaluation * state.getScore()
 
     # reward for eating the food
-    stateEvaluation = stateEvaluation/GameState(state).getNumFood()
+    stateEvaluation = stateEvaluation/(GameState(state).getNumFood()+1)
 
     return stateEvaluation
 
