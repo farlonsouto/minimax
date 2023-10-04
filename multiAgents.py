@@ -77,7 +77,6 @@ class ReflexAgent(Agent):
         newFood = successorGameState.getFood()
         newGhostStates = successorGameState.getGhostStates()
         newScaredTimes = [ghostState.scaredTimer for ghostState in newGhostStates]
-
         "*** YOUR CODE HERE ***"
         return successorGameState.getScore()
 
@@ -108,10 +107,16 @@ class MultiAgentSearchAgent(Agent):
     is another abstract class.
     """
 
-    def __init__(self, evalFn = 'scoreEvaluationFunction', depth = '2'):
+    def __init__(self, evalFn='scoreEvaluationFunction', depth='2'):
+        super().__init__()
         self.index = 0 # Pacman is always agent index 0
         self.evaluationFunction = util.lookup(evalFn, globals())
         self.depth = int(depth)
+
+    @staticmethod
+    def isAtOneOfTheLeafNodesWith(state)->bool:
+        """ Because the leafs are instances of GameState, nodes are instances of MultiagentTreeState. """
+        return isinstance(state, GameState)
 
 # ------------------------------------------------------------------------ CLASS ---------------------------------------
 
@@ -146,29 +151,29 @@ class MinimaxAgent(MultiAgentSearchAgent):
         Returns whether the game state is a losing state
         """
 
-        value, move = self.maxValue(gameState, self.depth-1)
+        value, move = self.maxValue(gameState)
         return move
 
     # ------------------------------------------------------------------------------ MAX VALUE -------------------------
-    def maxValue(self, thisGameState: GameState, depth: int) -> (float, any):
+    def maxValue(self, thisGameState: GameState) -> (float, any):
         """ Maximizes for the PacMan agent """
-        if depth == 0:
+        if MinimaxAgent.isAtOneOfTheLeafNodesWith(thisGameState):
             return better(thisGameState), None
 
         highestScore, selectedAction = 0, None
         actions = thisGameState.getLegalActions(PAC_MAN)
 
         for action in actions:
-            minTuple = self.minValue(thisGameState.generateSuccessor(PAC_MAN, action), depth - 1)
+            minTuple = self.minValue(thisGameState.generateSuccessor(PAC_MAN, action))
             currentScore, currentAction = minTuple[0], action
             if currentScore > highestScore:
                 highestScore, selectedAction = currentScore, currentAction
         return highestScore, selectedAction
 
     # ------------------------------------------------------------------------------ MIN VALUE -------------------------
-    def minValue(self, thisGameState: GameState, depth: int) -> (float, any):
+    def minValue(self, thisGameState: GameState) -> (float, any):
         """ Minimizes for the Ghost agents """
-        if depth == 0:
+        if MinimaxAgent.isAtOneOfTheLeafNodesWith(thisGameState):
             return better(thisGameState), None
 
         lowestScore, selectedAction = 9999999, None
@@ -178,7 +183,7 @@ class MinimaxAgent(MultiAgentSearchAgent):
             successorStates.append(thisGameState.generateSuccessor(PAC_MAN, a))
         # successorStates = self.getGhostsSuccessorStates(thisGameState)
         for successorState in successorStates:
-            currentScore, currentAction = self.maxValue(successorState, depth - 1)
+            currentScore, currentAction = self.maxValue(successorState)
             if currentScore < lowestScore:
                 lowestScore, selectedAction = currentScore, currentAction
         return lowestScore, selectedAction
@@ -240,48 +245,54 @@ class MinimaxAgent(MultiAgentSearchAgent):
 
 # ------------------------------------------------------------------------ CLASS ---------------------------------------
 
+class Pruning:
+    """ Encapsulates the Alpha and the Beta variables used as registers into the Alpha-Beta pruning adversarial
+    search implementation"""
+    def __init__(self, alpha:float, beta:float):
+        # global maximum
+        self.ALPHA = alpha
+        # global minimum
+        self.BETA = beta
+
+# ------------------------------------------------------------------------ CLASS ---------------------------------------
+
 class AlphaBetaAgent(MultiAgentSearchAgent):
     """ ================================================================================================================
     ==================================== ALPHA-BETA PRUNING ==================================== QUESTION 3 ============
     ====================================================================================================================
     """
 
-    def __init__(self, depth='2'):
-        # global maximum
-        super().__init__(depth)
-        self.ALPHA = 0.00
-        # global minimum
-        self.BETA = 999999999999.99
-
     def getAction(self, gameState):
         """
         Returns the minimax action using self.depth and self.evaluationFunction
         """
-        value, move = self.maxValue_alpha_beta(gameState, int(self.depth)-1)
+        value, move = self.maxValue_alpha_beta(gameState, Pruning(0.00, 9999999999.89))
         return move
-    # ------------------------------------------------------------------------------ MAX VALUE -------------------------
-    def maxValue_alpha_beta(self, thisGameState: GameState, depth: int) -> (float, any):
+    # --------------------------------------------------------------------ALPHA-BETA MAX VALUE -------------------------
+    def maxValue_alpha_beta(self, thisGameState: GameState, pruning:Pruning) -> (float, any):
         """ Maximizes for the PacMan agent """
-        if depth == 0:
+
+        if MinimaxAgent.isAtOneOfTheLeafNodesWith(thisGameState):
             return better(thisGameState), None
 
         highestScore, selectedAction = 0, None
         actions = thisGameState.getLegalActions(PAC_MAN)
 
         for action in actions:
-            minTuple = self.minValue_alpha_beta(thisGameState.generateSuccessor(PAC_MAN, action), depth - 1)
+            minTuple = self.minValue_alpha_beta(thisGameState.generateSuccessor(PAC_MAN, action), pruning)
             currentScore, currentAction = minTuple[0], action
             if currentScore > highestScore:
                 highestScore, selectedAction = currentScore, currentAction
-                self.ALPHA = max(self.ALPHA, highestScore)
-            if highestScore >= self.BETA:
+                pruning.ALPHA = max(pruning.ALPHA, highestScore)
+            if highestScore >= pruning.BETA:
                 return highestScore, selectedAction
         return highestScore, selectedAction
 
-    # ------------------------------------------------------------------------------ MIN VALUE -------------------------
-    def minValue_alpha_beta(self, thisGameState: GameState, depth: int) -> (float, any):
+    # ------------------------------------------------------------------- ALPHA-BETA MIN VALUE -------------------------
+    def minValue_alpha_beta(self, thisGameState: GameState, pruning:Pruning) -> (float, any):
         """ Minimizes for the Ghost agents """
-        if depth == 0:
+
+        if MinimaxAgent.isAtOneOfTheLeafNodesWith(thisGameState):
             return better(thisGameState), None
 
         lowestScore, selectedAction = 9999999, None
@@ -291,11 +302,11 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
             successorStates.append(thisGameState.generateSuccessor(PAC_MAN, a))
         # successorStates = self.getGhostsSuccessorStates(thisGameState)
         for successorState in successorStates:
-            currentScore, currentAction = self.maxValue_alpha_beta(successorState, depth - 1)
+            currentScore, currentAction = self.maxValue_alpha_beta(successorState, pruning)
             if currentScore < lowestScore:
                 lowestScore, selectedAction = currentScore, currentAction
-                self.BETA = min(self.BETA, lowestScore)
-            if lowestScore <= self.ALPHA:
+                pruning.BETA = min(pruning.BETA, lowestScore)
+            if lowestScore <= pruning.ALPHA:
                 return lowestScore, selectedAction
         return lowestScore, selectedAction
 
@@ -330,10 +341,13 @@ def betterEvaluationFunction(state: GameState):
     """
     if state.isLose():
         return 0
-    elif state.isWin():
-        return BASE_STATE_EVAL * 1000
-    else:
-        return BASE_STATE_EVAL/(state.getNumAgents()+1)
+
+    utility = BASE_STATE_EVAL * state.getScore()
+
+    if state.isWin():
+        return utility
+
+    return utility/(max((state.getNumFood()+state.getNumAgents()),1))
 
 # Abbreviation
 better = betterEvaluationFunction
