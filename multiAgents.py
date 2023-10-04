@@ -172,7 +172,11 @@ class MinimaxAgent(MultiAgentSearchAgent):
             return better(thisGameState), None
 
         lowestScore, selectedAction = 9999999, None
-        successorStates = self.getGhostsSuccessorStates(thisGameState)
+        actions = thisGameState.getLegalActions(PAC_MAN)
+        successorStates = []
+        for a in actions:
+            successorStates.append(thisGameState.generateSuccessor(PAC_MAN, a))
+        # successorStates = self.getGhostsSuccessorStates(thisGameState)
         for successorState in successorStates:
             currentScore, currentAction = self.maxValue(successorState, depth - 1)
             if currentScore < lowestScore:
@@ -242,12 +246,58 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
     ====================================================================================================================
     """
 
+    def __init__(self, depth='2'):
+        # global maximum
+        super().__init__(depth)
+        self.ALPHA = 0.00
+        # global minimum
+        self.BETA = 999999999999.99
+
     def getAction(self, gameState):
         """
         Returns the minimax action using self.depth and self.evaluationFunction
         """
-        "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        value, move = self.maxValue_alpha_beta(gameState, int(self.depth)-1)
+        return move
+    # ------------------------------------------------------------------------------ MAX VALUE -------------------------
+    def maxValue_alpha_beta(self, thisGameState: GameState, depth: int) -> (float, any):
+        """ Maximizes for the PacMan agent """
+        if depth == 0:
+            return better(thisGameState), None
+
+        highestScore, selectedAction = 0, None
+        actions = thisGameState.getLegalActions(PAC_MAN)
+
+        for action in actions:
+            minTuple = self.minValue_alpha_beta(thisGameState.generateSuccessor(PAC_MAN, action), depth - 1)
+            currentScore, currentAction = minTuple[0], action
+            if currentScore > highestScore:
+                highestScore, selectedAction = currentScore, currentAction
+                self.ALPHA = max(self.ALPHA, highestScore)
+            if highestScore >= self.BETA:
+                return highestScore, selectedAction
+        return highestScore, selectedAction
+
+    # ------------------------------------------------------------------------------ MIN VALUE -------------------------
+    def minValue_alpha_beta(self, thisGameState: GameState, depth: int) -> (float, any):
+        """ Minimizes for the Ghost agents """
+        if depth == 0:
+            return better(thisGameState), None
+
+        lowestScore, selectedAction = 9999999, None
+        actions = thisGameState.getLegalActions(PAC_MAN)
+        successorStates = []
+        for a in actions:
+            successorStates.append(thisGameState.generateSuccessor(PAC_MAN, a))
+        # successorStates = self.getGhostsSuccessorStates(thisGameState)
+        for successorState in successorStates:
+            currentScore, currentAction = self.maxValue_alpha_beta(successorState, depth - 1)
+            if currentScore < lowestScore:
+                lowestScore, selectedAction = currentScore, currentAction
+                self.BETA = min(self.BETA, lowestScore)
+            if lowestScore <= self.ALPHA:
+                return lowestScore, selectedAction
+        return lowestScore, selectedAction
 
 # ------------------------------------------------------------------------ CLASS ---------------------------------------
 
