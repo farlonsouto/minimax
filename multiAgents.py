@@ -113,81 +113,6 @@ class MultiAgentSearchAgent(Agent):
         self.evaluationFunction = util.lookup(evalFn, globals())
         self.depth = int(depth)
 
-    @staticmethod
-    def isAtOneOfTheLeafNodesWith(state)->bool:
-        """ Because the leafs are instances of GameState, nodes are instances of MultiagentTreeState. """
-        return isinstance(state, GameState)
-
-# ------------------------------------------------------------------------ CLASS ---------------------------------------
-
-class MinimaxAgent(MultiAgentSearchAgent):
-    """ ================================================================================================================
-    ====================== MINIMAX AGENT ======================================================= QUESTION 2 ============
-    ====================================================================================================================
-    """
-
-    def getAction(self, gameState):
-        """
-        Returns the minimax action from the current gameState using self.depth
-        and self.evaluationFunction.
-
-        Here are some method calls that might be useful when implementing minimax.
-
-        gameState.getLegalActions(agentIndex):
-        Returns a list of legal actions for an agent where:
-            - agentIndex=0 is Pacman
-            - ghosts' agentIndex >= 1
-
-        gameState.generateSuccessor(agentIndex, action):
-        Returns the successor game state after an agent takes an action
-
-        gameState.getNumAgents():
-        Returns the total number of agents in the game
-
-        gameState.isWin():
-        Returns whether the game state is a winning state
-
-        gameState.isLose():
-        Returns whether the game state is a losing state
-        """
-
-        value, move = self.maxValue(gameState)
-        return move
-
-    # ------------------------------------------------------------------------------ MAX VALUE -------------------------
-    def maxValue(self, thisGameState: GameState) -> (float, any):
-        """ Maximizes for the PacMan agent """
-        if MinimaxAgent.isAtOneOfTheLeafNodesWith(thisGameState):
-            return better(thisGameState), None
-
-        highestScore, selectedAction = 0, None
-        actions = thisGameState.getLegalActions(PAC_MAN)
-
-        for action in actions:
-            minTuple = self.minValue(thisGameState.generateSuccessor(PAC_MAN, action))
-            currentScore, currentAction = minTuple[0], action
-            if currentScore > highestScore:
-                highestScore, selectedAction = currentScore, currentAction
-        return highestScore, selectedAction
-
-    # ------------------------------------------------------------------------------ MIN VALUE -------------------------
-    def minValue(self, thisGameState: GameState) -> (float, any):
-        """ Minimizes for the Ghost agents """
-        if MinimaxAgent.isAtOneOfTheLeafNodesWith(thisGameState):
-            return better(thisGameState), None
-
-        lowestScore, selectedAction = 9999999, None
-        actions = thisGameState.getLegalActions(PAC_MAN)
-        successorStates = []
-        for a in actions:
-            successorStates.append(thisGameState.generateSuccessor(PAC_MAN, a))
-        # successorStates = self.getGhostsSuccessorStates(thisGameState)
-        for successorState in successorStates:
-            currentScore, currentAction = self.maxValue(successorState)
-            if currentScore < lowestScore:
-                lowestScore, selectedAction = currentScore, currentAction
-        return lowestScore, selectedAction
-
     # ----------------------------------------------------------------------- GHOST SUCCESSORS STATES ------------------
     def getGhostsSuccessorStates(self, state: GameState)-> list[GameState]:
         """ Obtains all the possible successor states based on the possible combinations of the available ghosts'
@@ -243,6 +168,79 @@ class MinimaxAgent(MultiAgentSearchAgent):
 
         return combinations
 
+    @staticmethod
+    def isAtOneOfTheLeafNodesWith(state)->bool:
+        """ Because the leafs are instances of GameState, nodes are instances of MultiagentTreeState. """
+        return state.isWin() or state.isLose() or isinstance(state, GameState)
+
+# ------------------------------------------------------------------------ CLASS ---------------------------------------
+
+class MinimaxAgent(MultiAgentSearchAgent):
+    """ ================================================================================================================
+    ====================== MINIMAX AGENT ======================================================= QUESTION 2 ============
+    ====================================================================================================================
+    """
+
+    def getAction(self, gameState):
+        """
+        Returns the minimax action from the current gameState using self.depth
+        and self.evaluationFunction.
+
+        Here are some method calls that might be useful when implementing minimax.
+
+        gameState.getLegalActions(agentIndex):
+        Returns a list of legal actions for an agent where:
+            - agentIndex=0 is Pacman
+            - ghosts' agentIndex >= 1
+
+        gameState.generateSuccessor(agentIndex, action):
+        Returns the successor game state after an agent takes an action
+
+        gameState.getNumAgents():
+        Returns the total number of agents in the game
+
+        gameState.isWin():
+        Returns whether the game state is a winning state
+
+        gameState.isLose():
+        Returns whether the game state is a losing state
+        """
+
+        value, move = self.maxValue(gameState)
+        return move
+
+    # ------------------------------------------------------------------------------ MAX VALUE -------------------------
+    def maxValue(self, thisGameState: GameState) -> (float, any):
+        """ Maximizes for the PacMan agent """
+        if MinimaxAgent.isAtOneOfTheLeafNodesWith(thisGameState):
+            return better(thisGameState), None
+
+        highestScore, selectedAction = 0, None
+        actions = thisGameState.getLegalActions(PAC_MAN)
+
+        for action in actions:
+            minTuple = self.minValue(thisGameState.generateSuccessor(PAC_MAN, action))
+            currentScore, currentAction = minTuple[0], action
+            if currentScore > highestScore:
+                highestScore, selectedAction = currentScore, currentAction
+                print("Action type is: {}".format(type(selectedAction)))
+        return highestScore, selectedAction
+
+    # ------------------------------------------------------------------------------ MIN VALUE -------------------------
+    def minValue(self, thisGameState: GameState) -> (float, any):
+        """ Minimizes for the Ghost agents """
+        if MinimaxAgent.isAtOneOfTheLeafNodesWith(thisGameState):
+            return better(thisGameState), None
+
+        lowestScore, selectedAction = 9999999, None
+
+        successorStates = self.getGhostsSuccessorStates(thisGameState)
+        for successorState in successorStates:
+            currentScore, currentAction = self.maxValue(successorState)
+            if currentScore < lowestScore:
+                lowestScore, selectedAction = currentScore, currentAction
+        return lowestScore, selectedAction
+
 # ------------------------------------------------------------------------ CLASS ---------------------------------------
 
 class Pruning:
@@ -284,7 +282,7 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
             if currentScore > highestScore:
                 highestScore, selectedAction = currentScore, currentAction
                 pruning.ALPHA = max(pruning.ALPHA, highestScore)
-            if highestScore >= pruning.BETA:
+            if highestScore > pruning.BETA:
                 return highestScore, selectedAction
         return highestScore, selectedAction
 
@@ -296,17 +294,14 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
             return better(thisGameState), None
 
         lowestScore, selectedAction = 9999999, None
-        actions = thisGameState.getLegalActions(PAC_MAN)
-        successorStates = []
-        for a in actions:
-            successorStates.append(thisGameState.generateSuccessor(PAC_MAN, a))
-        # successorStates = self.getGhostsSuccessorStates(thisGameState)
+
+        successorStates = self.getGhostsSuccessorStates(thisGameState)
         for successorState in successorStates:
             currentScore, currentAction = self.maxValue_alpha_beta(successorState, pruning)
             if currentScore < lowestScore:
                 lowestScore, selectedAction = currentScore, currentAction
                 pruning.BETA = min(pruning.BETA, lowestScore)
-            if lowestScore <= pruning.ALPHA:
+            if lowestScore < pruning.ALPHA:
                 return lowestScore, selectedAction
         return lowestScore, selectedAction
 
