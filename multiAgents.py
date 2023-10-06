@@ -19,7 +19,7 @@ from game import Agent
 
 PAC_MAN = 0
 GHOSTS_BASE_INDEX = 1
-BASE_STATE_EVAL = 50
+BASE_STATE_EVAL = 100
 
 # ------------------------------------------------------------------------ CLASS ---------------------------------------
 
@@ -122,8 +122,6 @@ class MultiAgentSearchAgent(Agent):
 
         ghostActions = []
         for index in range(1, state.getNumAgents()):
-            legalActions = list(filter(lambda a: a != 'Center',state.getLegalActions(index)))
-            print("Ghost {} legal actions: {}".format(index, legalActions))
             ghostActions.append(state.getLegalActions(index))
 
         successorStates = []
@@ -134,10 +132,12 @@ class MultiAgentSearchAgent(Agent):
             successor = state
             # Each position in the tuple corresponds to one of the ghosts
             for ghostAction in transitionTuple:
-                if ghostAction: #Because tuples have the size of the total number ghosts, it can be None
+                # Because tuples have the size of the total number ghosts and because eventually a ghost will
+                # have no legal action to perform, so an action can be null (None)
+                if ghostAction:
                     successor = successor.generateSuccessor(ghostIndex, ghostAction)
                 ghostIndex += 1
-            # After an entire tuple is applied, a new state is created
+                # After an entire tuple is applied, a new state is created
             successorStates.append(successor)
         return successorStates
 
@@ -174,7 +174,7 @@ class MultiAgentSearchAgent(Agent):
 
     def isTerminal(self, state)->bool:
         """ Because the leafs are instances of GameState, nodes are instances of MultiagentTreeState. """
-        return state.isWin() or state.isLose() or isinstance(state, GameState)
+        return state.isWin() or state.isLose()  or isinstance(state, GameState)
 # ------------------------------------------------------------------------ CLASS ---------------------------------------
 
 class MinimaxAgent(MultiAgentSearchAgent):
@@ -334,15 +334,11 @@ def betterEvaluationFunction(state: GameState):
     Both win (super rewarding) and lose (super detrimental) final states are absolute on their own and will trigger an
     immediate return.
     """
-    if state.isLose():
-        return 0
 
-    utility = BASE_STATE_EVAL * state.getScore()
+    if isinstance(state, GameState):
+        return (state.getScore()/max((state.getNumAgents()+len(state.getCapsules())),1))-state.getNumFood()
 
-    if state.isWin():
-        return utility
-
-    return utility/(max((state.getNumFood()+state.getNumAgents()),1))
+    return state.getScore()
 
 # Abbreviation
 better = betterEvaluationFunction
