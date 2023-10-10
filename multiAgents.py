@@ -225,7 +225,6 @@ class MinimaxAgent(MultiAgentSearchAgent):
             currentScore, currentAction = minTuple[0], action
             if currentScore > highestScore:
                 highestScore, selectedAction = currentScore, currentAction
-        print("selectedAction : {}".format(selectedAction))
         return highestScore, selectedAction
 
     # ------------------------------------------------------------------------------ MIN VALUE -------------------------
