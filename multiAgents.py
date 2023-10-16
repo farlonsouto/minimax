@@ -11,11 +11,9 @@
 # Student side autograding was added by Brad Miller, Nick Hay, and
 # Pieter Abbeel (pabbeel@cs.berkeley.edu).
 from pacman import GameState
-from util import manhattanDistance
-from game import Directions
 import random, util
-
 from game import Agent
+import threading
 
 PAC_MAN = 0
 GHOSTS_BASE_INDEX = 1
@@ -171,10 +169,23 @@ class MultiAgentSearchAgent(Agent):
 
         return combinations
 
-    def isTerminal(self, state, currentDepth: int)->bool:
+# ------------------------------------------------------------------------ CLASS ---------------------------------------
+
+class ForMy:
+    """" Helper class based on the Builder Design Pattern with focs on readability regarding the terminal state
+    testing """
+    def __init__(self, multiAgentSearchAgent: MultiAgentSearchAgent):
+        self.multiAgentSearchAgent = multiAgentSearchAgent
+        self.state = None
+
+    def isTerminal(self, state):
+        self.state = state
+        return self
+    def at(self, depth: int)->bool:
         """ Because the leafs are instances of GameState, nodes are instances of MultiagentTreeState. """
         # the current depth must consider the 2-ply. I don't know exactly why, but it does.
-        return state.isWin() or state.isLose()  or isinstance(state, GameState) or currentDepth/2 == self.depth
+        return self.state.isWin() or self.state.isLose()  or isinstance(self.state, GameState) or depth/2 == self.multiAgentSearchAgent.depth
+
 # ------------------------------------------------------------------------ CLASS ---------------------------------------
 
 class MinimaxAgent(MultiAgentSearchAgent):
@@ -214,7 +225,7 @@ class MinimaxAgent(MultiAgentSearchAgent):
     # ------------------------------------------------------------------------------ MAX VALUE -------------------------
     def maxValue(self, state: GameState, currentDepth: int) -> (float, str):
         """ Maximizes for the PacMan agent """
-        if self.isTerminal(state, currentDepth):
+        if ForMy(self).isTerminal(state).at(currentDepth):
             return better(state), None
 
         highestScore, selectedAction = 0, None
@@ -230,7 +241,7 @@ class MinimaxAgent(MultiAgentSearchAgent):
     # ------------------------------------------------------------------------------ MIN VALUE -------------------------
     def minValue(self, state: GameState, currentDepth: int) -> (float, str):
         """ Minimizes for the Ghost agents """
-        if self.isTerminal(state, currentDepth):
+        if ForMy(self).isTerminal(state).at(currentDepth):
             return better(state), None
 
         lowestScore, selectedAction = 9999999, None
@@ -272,17 +283,17 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
         value, move = self.maxValue_alpha_beta(gameState, 0)
         return move
     # --------------------------------------------------------------------ALPHA-BETA MAX VALUE -------------------------
-    def maxValue_alpha_beta(self, thisGameState: GameState, currentDepth:int) -> (float, any):
+    def maxValue_alpha_beta(self, state: GameState, currentDepth:int) -> (float, any):
         """ Maximizes for the PacMan agent """
 
-        if self.isTerminal(thisGameState, currentDepth):
-            return better(thisGameState), None
+        if ForMy(self).isTerminal(state).at(currentDepth):
+            return better(state), None
 
         highestScore, selectedAction = 0, None
-        actions = thisGameState.getLegalActions(PAC_MAN)
+        actions = state.getLegalActions(PAC_MAN)
 
         for action in actions:
-            minTuple = self.minValue_alpha_beta(thisGameState.generateSuccessor(PAC_MAN, action), currentDepth+1)
+            minTuple = self.minValue_alpha_beta(state.generateSuccessor(PAC_MAN, action), currentDepth + 1)
             currentScore, currentAction = minTuple[0], action
             if currentScore > highestScore:
                 highestScore, selectedAction = currentScore, currentAction
@@ -292,15 +303,15 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
         return highestScore, selectedAction
 
     # ------------------------------------------------------------------- ALPHA-BETA MIN VALUE -------------------------
-    def minValue_alpha_beta(self, thisGameState: GameState, currentDepth:int) -> (float, any):
+    def minValue_alpha_beta(self, state: GameState, currentDepth:int) -> (float, any):
         """ Minimizes for the Ghost agents """
 
-        if self.isTerminal(thisGameState, currentDepth):
-            return better(thisGameState), None
+        if ForMy(self).isTerminal(state).at(currentDepth):
+            return better(state), None
 
         lowestScore, selectedAction = 9999999, None
 
-        successorStates = self.getGhostsSuccessorStates(thisGameState)
+        successorStates = self.getGhostsSuccessorStates(state)
         for successorState in successorStates:
             currentScore, currentAction = self.maxValue_alpha_beta(successorState, currentDepth+1)
             if currentScore < lowestScore:
